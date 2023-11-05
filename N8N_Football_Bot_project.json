@@ -1,0 +1,806 @@
+{
+    "name": "N8N Football Bot project",
+    "nodes": [
+      {
+        "parameters": {
+          "url": "https://www.goal.com/api/live-scores/refresh",
+          "sendQuery": true,
+          "queryParameters": {
+            "parameters": [
+              {
+                "name": "edition",
+                "value": "en"
+              },
+              {
+                "name": "date",
+                "value": "=2023-11-05"
+              },
+              {
+                "name": "tzoffset",
+                "value": "480"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "293b5596-b6d7-404d-87eb-5f27d39a8193",
+        "name": "HTTP Request",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.1,
+        "position": [
+          360,
+          1060
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "\nlet arr = []\nlet arr2 = $input.all()[0].json.liveScores\nlet bound = arr2.length\nfor (let index = 0; index < bound; index++) {\n    let items = arr2[index]\n    let matches =items.matches\n    let newList = matches.filter((item)=>{\n    return item.status==='LIVE'\n    })\n  arr.push(...newList)\n}\nreturn arr;"
+        },
+        "id": "ee9e6348-3b55-4c50-8868-6ea1c0914262",
+        "name": "Code",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          580,
+          1160
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "select",
+          "table": {
+            "__rl": true,
+            "value": "Football",
+            "mode": "list",
+            "cachedResultName": "Football"
+          },
+          "returnAll": true,
+          "options": {}
+        },
+        "id": "5ba019ea-bf51-4100-9945-2db2c090ee01",
+        "name": "MySQL1",
+        "type": "n8n-nodes-base.mySql",
+        "typeVersion": 2.2,
+        "position": [
+          440,
+          820
+        ],
+        "credentials": {
+          "mySql": {
+            "id": "6oMdE8TxRfToghHA",
+            "name": "MySQL account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "url": "https://www.goal.com/api/match/refresh",
+          "sendQuery": true,
+          "queryParameters": {
+            "parameters": [
+              {
+                "name": "edition",
+                "value": "en"
+              },
+              {
+                "name": "id",
+                "value": "={{ $json.id }}"
+              },
+              {
+                "name": "tab",
+                "value": "keyEvents"
+              },
+              {
+                "name": "includeAside",
+                "value": "false"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "532fc849-d420-4edf-9d42-d5ce3d6bae21",
+        "name": "HTTP Request1",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.1,
+        "position": [
+          580,
+          1380
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "\nlet arr = []\nlet arr2 = $input.all()\nlet bound = arr2.length\nfor (let index = 0; index < bound; index++) {\n    let items = arr2[index].json\n    let id = items.disqusThreadId.split('_')[1]\n    let match =items.match\n    let keyEventswww = match.keyEvents\n  arr.push({\n    id,\n    keyEventswww\n  })\n}\nreturn arr;"
+        },
+        "id": "824c7c8b-f607-4483-8c6f-ee19757e6632",
+        "name": "Code1",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          760,
+          1380
+        ]
+      },
+      {
+        "parameters": {
+          "mode": "combine",
+          "mergeByFields": {
+            "values": [
+              {
+                "field1": "id",
+                "field2": "id"
+              }
+            ]
+          },
+          "joinMode": "enrichInput2",
+          "options": {}
+        },
+        "id": "2b84dba4-4076-4264-af27-a249f1e42c15",
+        "name": "Merge1",
+        "type": "n8n-nodes-base.merge",
+        "typeVersion": 2.1,
+        "position": [
+          860,
+          1140
+        ]
+      },
+      {
+        "parameters": {
+          "webhookUri": "https://discord.com/api/webhooks/1161467926294052934/xzBC3SRM_eoO6cySQR4WEzK7dbW8JUmin1PEWkx7nNnMvOLq4J5gRZxnrG_Xz9iwKzaC",
+          "text": "={{ $json.text }}",
+          "options": {}
+        },
+        "id": "40642d17-1d18-4bc3-8421-2d8f340221c1",
+        "name": "Discord",
+        "type": "n8n-nodes-base.discord",
+        "typeVersion": 1,
+        "position": [
+          2160,
+          1160
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "upsert",
+          "table": {
+            "__rl": true,
+            "value": "Football",
+            "mode": "list",
+            "cachedResultName": "Football"
+          },
+          "dataMode": "defineBelow",
+          "columnToMatchOn": "id",
+          "valueToMatchOn": "={{ $('Merge1').item.json.id }}",
+          "valuesToSend": {
+            "values": [
+              {
+                "column": "keyEventswww",
+                "value": "={{JSON.stringify($('Merge1').item.json.keyEventswww)}}"
+              },
+              {
+                "column": "score",
+                "value": "={{JSON.stringify($('Merge1').item.json.score) }}"
+              },
+              {
+                "column": "startDate",
+                "value": "={{ $('Merge1').item.json.startDate }}"
+              },
+              {
+                "column": "teamA",
+                "value": "={{JSON.stringify( $('Merge1').item.json.teamA) }}"
+              },
+              {
+                "column": "teamB",
+                "value": "={{JSON.stringify( $('Merge1').item.json.teamB) }}"
+              },
+              {
+                "column": "status",
+                "value": "={{ $json.status }}"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "7bc65059-d3c9-443a-b1d1-2d0d22572a3b",
+        "name": "MySQL2",
+        "type": "n8n-nodes-base.mySql",
+        "typeVersion": 2.2,
+        "position": [
+          1040,
+          1280
+        ],
+        "notesInFlow": false,
+        "credentials": {
+          "mySql": {
+            "id": "6oMdE8TxRfToghHA",
+            "name": "MySQL account"
+          }
+        }
+      },
+      {
+        "parameters": {},
+        "id": "70491555-5d8a-41fd-bebd-16b7269c1522",
+        "name": "Merge2",
+        "type": "n8n-nodes-base.merge",
+        "typeVersion": 2.1,
+        "position": [
+          1040,
+          1000
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\n\n\nfunction findId(arr) {\n    let ids = []\n    arr.forEach(item => {\n        if (!ids.includes(item.id)) {\n            ids.push(item.id)\n        }\n    })\n    return ids\n}\nlet a  =$input.all().map(it=>it.json)\n\nlet arrid = findId(a)\nlet flag = true\nfor (let index = 0; index < arrid.length; index++) {\n   let item = arrid[index]\n   let arr = a.filter(i => i.id === item)\n  console.log(arrid)\n    if (arr.length <2) {\n       console.log(1)\n        flag = false\n        break\n    }\n    let arr1 = arr[0].keyEventswww\n    let arr2 = arr[1].keyEventswww\n    if(arr1.length!==arr2.length){\n       console.log(2)\n        flag = false\n        break\n    }\n    let score1 = arr[0].score\n    let score2 = arr[1].score\n    if(score1.teamA!==score2.teamA||score1.teamB!==score2.teamB){\n      console.log(3)\n        flag = false\n      break\n    }\n}\n\n\nreturn [{success:flag}]"
+        },
+        "id": "d37ea22c-33b2-4117-a8dd-2d145c94c2e4",
+        "name": "Code2",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1220,
+          920
+        ]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "boolean": [
+              {
+                "value1": "={{ $json.success }}",
+                "value2": "={{ false }}"
+              }
+            ]
+          }
+        },
+        "id": "4668a08b-e899-4947-b015-2ffc66d4f837",
+        "name": "IF",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 1,
+        "position": [
+          1440,
+          920
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "select",
+          "table": {
+            "__rl": true,
+            "value": "Football",
+            "mode": "list",
+            "cachedResultName": "Football"
+          },
+          "returnAll": true,
+          "options": {}
+        },
+        "id": "1a68e5bf-6a7f-49c8-9ab3-a4676102aea0",
+        "name": "MySQL4",
+        "type": "n8n-nodes-base.mySql",
+        "typeVersion": 2.2,
+        "position": [
+          1700,
+          1140
+        ],
+        "executeOnce": true,
+        "credentials": {
+          "mySql": {
+            "id": "6oMdE8TxRfToghHA",
+            "name": "MySQL account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "\nlet a = $input.all().map(it=>it.json)\nconsole.log(a)\n\nlet b = a.map(item => {\n    let obj = {}\n     obj.id = item.id\n     obj.text = item.teamA.name + '  VS  ' + item.teamB.name\n     obj.scoreText = item.score.teamA + ' : ' + item.score.teamB\n     return obj\n })\n\nlet text = ''\nb.map(item => {\n     text += item.text + ' || ' + item.scoreText + '\\n '\n})\n\n\nreturn [{text}];\n\n"
+        },
+        "id": "496858dd-fb7e-4dea-8dba-f2e5f1a99299",
+        "name": "Code3",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1900,
+          1140
+        ]
+      },
+      {
+        "parameters": {},
+        "id": "31187726-59cf-4428-b79c-f9b48188ed16",
+        "name": "Execute Workflow Trigger",
+        "type": "n8n-nodes-base.executeWorkflowTrigger",
+        "typeVersion": 1,
+        "position": [
+          200,
+          1060
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "deleteTable",
+          "table": {
+            "__rl": true,
+            "value": "Football",
+            "mode": "list",
+            "cachedResultName": "Football"
+          },
+          "options": {}
+        },
+        "id": "ed8a0a78-651f-4100-8b86-4d59a5839a1b",
+        "name": "MySQL",
+        "type": "n8n-nodes-base.mySql",
+        "typeVersion": 2.2,
+        "position": [
+          460,
+          460
+        ],
+        "credentials": {
+          "mySql": {
+            "id": "6oMdE8TxRfToghHA",
+            "name": "MySQL account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "amount": 5,
+          "unit": "seconds"
+        },
+        "id": "0eb846c8-e006-45b0-a5c4-f08456edc87a",
+        "name": "Wait1",
+        "type": "n8n-nodes-base.wait",
+        "typeVersion": 1,
+        "position": [
+          1500,
+          1380
+        ],
+        "webhookId": "65e7b541-f210-4081-b907-d821c44e135e"
+      },
+      {
+        "parameters": {},
+        "id": "3e82569c-aafa-4280-9c4b-e89185c0b34a",
+        "name": "Merge",
+        "type": "n8n-nodes-base.merge",
+        "typeVersion": 2.1,
+        "position": [
+          1320,
+          1140
+        ]
+      },
+      {
+        "parameters": {
+          "url": "https://www.goal.com/api/match/refresh",
+          "sendQuery": true,
+          "queryParameters": {
+            "parameters": [
+              {
+                "name": "edition",
+                "value": "en"
+              },
+              {
+                "name": "id",
+                "value": "={{ $json.id }}"
+              },
+              {
+                "name": "tab",
+                "value": "keyEvents"
+              },
+              {
+                "name": "includeAside",
+                "value": "false"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "7dcb20bc-3bac-4410-9f30-4c17c204afa5",
+        "name": "HTTP Request2",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.1,
+        "position": [
+          780,
+          600
+        ]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "string": [
+              {
+                "value1": "={{ $json.match.status }}",
+                "operation": "notEqual",
+                "value2": "LIVE"
+              }
+            ]
+          }
+        },
+        "id": "d7bc98d8-1467-42d9-bc21-36f79111813b",
+        "name": "IF1",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 1,
+        "position": [
+          980,
+          600
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "deleteTable",
+          "table": {
+            "__rl": true,
+            "value": "Football",
+            "mode": "list",
+            "cachedResultName": "Football"
+          },
+          "deleteCommand": "delete",
+          "where": {
+            "values": [
+              {
+                "column": "id",
+                "value": "={{ $json.id }}"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "4a718f3b-3a4c-43cc-8d11-be41a4bf8292",
+        "name": "MySQL3",
+        "type": "n8n-nodes-base.mySql",
+        "typeVersion": 2.2,
+        "position": [
+          1380,
+          600
+        ],
+        "credentials": {
+          "mySql": {
+            "id": "6oMdE8TxRfToghHA",
+            "name": "MySQL account"
+          }
+        }
+      },
+      {
+        "parameters": {},
+        "id": "545e0384-d553-4e4f-a7fd-5c30a5e9869f",
+        "name": "No Operation, do nothing1",
+        "type": "n8n-nodes-base.noOp",
+        "typeVersion": 1,
+        "position": [
+          1620,
+          600
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "let arr = []\nlet arr2 = $input.all()\nlet bound = arr2.length\nfor (let index = 0; index < bound; index++) {\n    let items = arr2[index].json\n    let id = items.match.id\n  arr.push({\n    id\n  })\n}\nreturn arr ;"
+        },
+        "id": "54168396-66bd-4756-b7b3-190a2536b943",
+        "name": "Code4",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1180,
+          600
+        ]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "number": [
+              {
+                "value1": "={{ $input.all().length }}",
+                "operation": "larger",
+                "value2": 1
+              }
+            ]
+          }
+        },
+        "id": "337fe07e-2cc6-4a0d-9af8-a570a330bf63",
+        "name": "IF2",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 1,
+        "position": [
+          1500,
+          1140
+        ]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "number": [
+              {
+                "value1": "={{ Number($runIndex % 10) }}",
+                "operation": "equal"
+              }
+            ]
+          }
+        },
+        "id": "ea9a711b-5bbe-4199-b680-5ac8f39aeb40",
+        "name": "IF3",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 1,
+        "position": [
+          560,
+          620
+        ]
+      }
+    ],
+    "pinData": {},
+    "connections": {
+      "HTTP Request": {
+        "main": [
+          [
+            {
+              "node": "Code",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "MySQL1",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code": {
+        "main": [
+          [
+            {
+              "node": "HTTP Request1",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Merge1",
+              "type": "main",
+              "index": 1
+            }
+          ]
+        ]
+      },
+      "MySQL1": {
+        "main": [
+          [
+            {
+              "node": "Merge2",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "IF3",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "HTTP Request1": {
+        "main": [
+          [
+            {
+              "node": "Code1",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code1": {
+        "main": [
+          [
+            {
+              "node": "Merge1",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Merge1": {
+        "main": [
+          [
+            {
+              "node": "MySQL2",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Merge2",
+              "type": "main",
+              "index": 1
+            }
+          ]
+        ]
+      },
+      "Merge2": {
+        "main": [
+          [
+            {
+              "node": "Code2",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code2": {
+        "main": [
+          [
+            {
+              "node": "IF",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "IF": {
+        "main": [
+          [
+            {
+              "node": "Merge",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "MySQL2": {
+        "main": [
+          [
+            {
+              "node": "Merge",
+              "type": "main",
+              "index": 1
+            }
+          ]
+        ]
+      },
+      "MySQL4": {
+        "main": [
+          [
+            {
+              "node": "Code3",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code3": {
+        "main": [
+          [
+            {
+              "node": "Discord",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Execute Workflow Trigger": {
+        "main": [
+          [
+            {
+              "node": "HTTP Request",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Merge": {
+        "main": [
+          [
+            {
+              "node": "IF2",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "HTTP Request2": {
+        "main": [
+          [
+            {
+              "node": "IF1",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "IF1": {
+        "main": [
+          [
+            {
+              "node": "Code4",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "MySQL3": {
+        "main": [
+          [
+            {
+              "node": "No Operation, do nothing1",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code4": {
+        "main": [
+          [
+            {
+              "node": "MySQL3",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "IF2": {
+        "main": [
+          [
+            {
+              "node": "MySQL4",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Wait1",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Wait1": {
+        "main": [
+          [
+            {
+              "node": "HTTP Request",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "IF3": {
+        "main": [
+          [
+            {
+              "node": "HTTP Request2",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Discord": {
+        "main": [
+          [
+            {
+              "node": "Wait1",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "active": false,
+    "settings": {
+      "executionOrder": "v1"
+    },
+    "versionId": "c228ba69-74b1-4370-99e8-5c3f403e699f",
+    "id": "8z3i5VM6wmhhKQfp",
+    "meta": {
+      "instanceId": "7fd0ac62806b2d5161ce567b6fa39f36764567d9ce8d6c7373539c5469dc814e"
+    },
+    "tags": []
+  }
